@@ -1,5 +1,8 @@
-//#define NIFTI
-//#include <cimgext/cimgext.h>
+/*
+A simple region growing implementation. It assumes the input is probability images, or intensity levels and not HU number.
+The threshold paramter thta must be provided is used to grow the regions, and the regions add voxels that are >= threshold.
+*/
+
 #include <iostream>
 #include <boost/program_options.hpp>
 #include <boost/filesystem/operations.hpp>
@@ -46,10 +49,11 @@ main(int ac, char* av[])
 	int yDim = in._height;
 	int zDim = in._depth;
 	double oldSeeds = seeds.size()/3;
-	std::cout << oldSeeds << std::endl;
 // Create seed mask	
-	cimg_library::CImg<int> mask = in; //(xDim,yDim,zDim); 
+	cimg_library::CImg<int> mask = in; 
 	cimg_forXYZ(mask,x,y,z) mask(x,y,z) = 0;
+
+// Sloppy way of doing this. Should change it in future
 
 	for(int i = 0; i < oldSeeds; i++)
 	{
@@ -57,54 +61,47 @@ main(int ac, char* av[])
 		printf(" using seed: %d %d %d\n", seeds[j], seeds[j+1], seeds[j+2]);
 		mask(seeds[j],seeds[j+1],seeds[j+2]) = 100; 
 	}
-//	int oldSeeds = 1;
+	
 	double newSeeds = 0;
 	int intens = 0;
 	int xNbr, yNbr, zNbr;
+// Iterate until no new seeds are added. Not very efficient, but does the job.
 	while(oldSeeds != newSeeds)
 	{
-		oldSeeds = newSeeds;
-		newSeeds = 0;
-		cimg_forXYZ(in,x,y,z) 
-			{
-				if(mask(x,y,z) > 0) intens = in(x,y,z);
-				for(int i = -1; i < 2; i++)
-				{
-					xNbr = x + i;
-					if(xNbr < xDim)
-					{
-						for(int j = -1; j < 2; j++)
-						{
-							yNbr = y + j;
-							if(yNbr < yDim)
-							{
-								for(int k = -1; k < 2; k++)
-								{
-									zNbr = z + k;
-									if(zNbr < zDim)
-									{
-										if(intens >= thresh) //&& intens <= (thresh+5))
-										{
-											newSeeds = newSeeds + 1;
-											mask(xNbr,yNbr,zNbr) = 100;
-										}
-									}
-								}
-							} 
-						}
-					}
-				}
-				
-			}	
+	 oldSeeds = newSeeds;
+	 newSeeds = 0;
+	 cimg_forXYZ(in,x,y,z) 
+	 {
+	  if(mask(x,y,z) > 0) intens = in(x,y,z);
+	   for(int i = -1; i < 2; i++)
+	   {
+	    xNbr = x + i;
+	    if(xNbr < xDim) // Check if voxel is beyond image border along X
+	    {
+	     for(int j = -1; j < 2; j++)
+	     {
+	      yNbr = y + j;
+	      if(yNbr < yDim) // Check if voxel is beyond image border along Y
+	      {
+	       for(int k = -1; k < 2; k++)
+	       {
+	         zNbr = z + k;
+		 if(zNbr < zDim) // Check if voxel is beyond image border along Z
+		 {
+		  if(intens >= thresh) //&& intens <= (thresh+5))
+		  {
+		  newSeeds = newSeeds + 1;
+		  mask(xNbr,yNbr,zNbr) = 100;
+		  }
+		 }
+	        }
+	       } 
+	      }
+	     }
+	    }
+	   }	
 	std::cout << newSeeds << std::endl;
 	}
-
-
-
-
-//	cimg_forXYZ(in,x,y,z)
-//		in(x,y,z) = 1*in(x,y,z);
-//	mask.set_metadata(in);	
 	if(out_file != "") mask.save(out_file.c_str());
     }
     catch(std::exception& e)
