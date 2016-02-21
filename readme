@@ -1,0 +1,1 @@
+Simple region growing method, based on intensity thresholding. Not a generic tool, but works well in grey NIFTI images.
